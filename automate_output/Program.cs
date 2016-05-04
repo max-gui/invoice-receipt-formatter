@@ -127,6 +127,7 @@ namespace automate_output
             MySheet.Cells[lastRow, 1] = "李莹怡";
             var dateTmp = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 20 + new Random().Next(0,5));
             MySheet.Cells[lastRow, 2] = dateTmp;
+            MySheet.Cells[lastRow, 3] = 350;
             MySheet.Cells[lastRow, 7] = "上海";
         }
 
