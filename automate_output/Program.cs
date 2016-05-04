@@ -1,65 +1,106 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using Ms=Microsoft.Office.Interop.Excel;
+using Ms = Microsoft.Office.Interop.Excel;
 
 namespace automate_output
 {
     class Program
     {
         static void Main(string[] args)
-        {  
+        {
             var MyApp = new Ms.Application();
-            MyApp.Visible = false;//System.Environment.CurrentDirectory
-            var MyBook = MyApp.Workbooks.Open($@"{System.Environment.CurrentDirectory}\output.xlsx");// DB_PATH);
-            var MySheet = (Ms.Worksheet)MyBook.Sheets[1]; // Explict cast is not required here
-            var lastRow = MySheet.Cells.SpecialCells(Ms.XlCellType.xlCellTypeLastCell).Row;
-            lastRow = 2;
-
-
-            string[] lines = System.IO.File.ReadAllLines($@"{System.Environment.CurrentDirectory}\input.txt", Encoding.GetEncoding("gb2312"));
-            
-            List<outputEntity> opeList = new List<outputEntity>();
-            opeList.Clear();
-            var nameTmp = string.Empty;
-            foreach (var line in lines)
+            var MyBooks = default(Ms.Workbooks);
+            var MyBook = default(Ms.Workbook);
+            var MySheets = default(Ms.Sheets);
+            var MySheet = default(Ms.Worksheet);
+            var MyRange = default(Ms.Range);
+            var lastRange = default(Ms.Range);
+            try
             {
-                if (line.StartsWith("~")) {
-                    nameTmp = line.TrimStart('~');
-                    continue;
-                }
-                var moneyTemp = int.Parse(GetSubStringBetween(line, "'", "'"));
-                var date = DateTime.Parse(GetSubStringBetween(line, "*", "*"));
-                var onTime = DateTime.Parse(GetSubStringBetween(line, "@", "@"));
-                var emp = new outputEntity
+                MyApp.Visible = false;//System.Environment.CurrentDirectory
+                MyApp.DisplayAlerts = false;
+                MyBooks = MyApp.Workbooks;
+                MyBook = MyBooks.Open($@"{System.Environment.CurrentDirectory}\output.xlsx");// DB_PATH);
+                MySheets = MyBook.Sheets;
+                MySheet = MySheets[1]; // Explict cast is not required here
+                MyRange = MySheet.Cells;
+                lastRange = MyRange.SpecialCells(Ms.XlCellType.xlCellTypeLastCell);
+                var lastRow = lastRange.Row;
+                lastRow = 2;
+
+
+                string[] lines = System.IO.File.ReadAllLines($@"{System.Environment.CurrentDirectory}\input.txt", Encoding.GetEncoding("gb2312"));
+
+                List<outputEntity> opeList = new List<outputEntity>();
+                opeList.Clear();
+                var nameTmp = string.Empty;
+                foreach (var line in lines)
                 {
-                    NameIndex1 = nameTmp,
-                    Data2 = date.ToShortDateString(),
-                    OnTime3 = onTime.ToShortTimeString(),
-                    DownTime4 = string.Empty,
-                    Money5 = moneyTemp.ToString(),
-                    WaitingTime6 = string.Empty,
-                    Message7 = "上海"
-                };
-                opeList.Add(emp);
+                    if (line.StartsWith("~"))
+                    {
+                        nameTmp = line.TrimStart('~');
+                        continue;
+                    }
+                    var moneyTemp = int.Parse(GetSubStringBetween(line, "'", "'"));
+                    var date = DateTime.Parse(GetSubStringBetween(line, "*", "*"));
+                    var onTime = DateTime.Parse(GetSubStringBetween(line, "@", "@"));
+                    var emp = new outputEntity
+                    {
+                        NameIndex1 = nameTmp,
+                        Data2 = date.ToShortDateString(),
+                        OnTime3 = onTime.ToShortTimeString(),
+                        DownTime4 = string.Empty,
+                        Money5 = moneyTemp.ToString(),
+                        WaitingTime6 = string.Empty,
+                        Message7 = "上海"
+                    };
+                    opeList.Add(emp);
 
-                WriteToExcel(MyBook, MySheet, ++lastRow, emp);
+                    WriteToExcel(MySheet, ++lastRow, emp);
+                }
+
+                lastRow++;
+
+                ParkingFee(MySheet, lastRow);
+
+                MyBook.SaveAs($@"{System.Environment.CurrentDirectory}\{DateTime.Now.ToString("yyyyMM")}-output.xlsx");//, AccessMode: Ms.XlSaveAsAccessMode.xlNoChange);//, ConflictResolution: Microsoft.Office.Interop.Excel.XlSaveConflictResolution.xlLocalSessionChanges);
+
+                MyBook.Saved = true;
             }
+            catch (Exception e)
+            {
+                MyBook.Saved = true;
+                Console.WriteLine(e.Message);
+                Console.ReadLine();
+            }
+            finally
+            {
+                MyApp.Quit();
 
-            lastRow++;
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
 
-            ParkingFee(MySheet, lastRow);
+                releaseObject(lastRange);
+                releaseObject(MyRange);
+                releaseObject(MySheet);
+                releaseObject(MySheets);
+                releaseObject(MyBook);
+                releaseObject(MyBooks);
+                releaseObject(MyApp);
 
-            MyBook.SaveAs($@"{System.Environment.CurrentDirectory}\{DateTime.Now.ToString("yyyyMM")}-output.xlsx");
-
-            MyBook.Saved = true;
-            MyApp.Quit();
-
-            releaseObject(MyApp);
-            releaseObject(MyBook);
-            releaseObject(MySheet);
+                //MyBooks = default(Ms.Workbooks);
+                //var MyBook = default(Ms.Workbook);
+                //var MySheets = default(Ms.Sheets);
+                //var MySheet = default(Ms.Worksheet);
+                //var MyRange = default(Ms.Range);
+                //var lastRange = default(Ms.Range);
+            }
 
         }
 
@@ -84,12 +125,12 @@ namespace automate_output
             mergedSheet.Font.Size = 9;
 
             MySheet.Cells[lastRow, 1] = "李莹怡";
-            var dateTmp = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 20);
+            var dateTmp = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 20 + new Random().Next(0,5));
             MySheet.Cells[lastRow, 2] = dateTmp;
             MySheet.Cells[lastRow, 7] = "上海";
         }
 
-        public static void WriteToExcel(Ms.Workbook MyBook, Ms.Worksheet MySheet,int lastRow ,outputEntity emp)
+        public static void WriteToExcel(Ms.Worksheet MySheet, int lastRow, outputEntity emp)
         {
             try
             {
